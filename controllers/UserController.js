@@ -1,107 +1,100 @@
 const User = require("../models/User");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
-const createUser = async (req, res) => {
-  try {
-    let { first_name, last_name, email, password, role, profile } = req.body;
-    let user = await User.findOne({ email: email });
 
-    if (!user) {
-      await User.create({
-        first_name: first_name,
-        last_name: last_name,
-        email: email,
-        password: password,
-        role: role,
-        profile: profile,
-      });
+const create_jwt_token = async (id) =>{
+    return jwt.sign({id},process.env.JWT_SECRET);
+}
 
-      res.json({
-        success: true,
-        message: "User created successfully!",
-      });
-    } else {
-      res.json({
-        success: false,
-        message: "this user is already exists!",
-      });
+const createUser = async (req,res) => {
+    
+    try {
+
+        let salt = await bcrypt.genSalt();
+        let hashPssword = await bcrypt.hash(req.body.password,salt);
+
+        let user = await User.create({
+            first_name:req.body.first_name,
+            last_name:req.body.last_name,
+            email:req.body.email,
+            password:hashPssword,
+            role:'user',
+            profile:process.env.AVATER_IMAGE
+        });
+
+        let jwttoken = await create_jwt_token(user._id);
+
+        res.json({
+            success:true,
+            token:jwttoken,
+            data:user,
+            message:'user registered successfully!'
+        })
+        
+    } catch (error) {
+
+        res.json({
+            success:false,
+            error:error
+        })
+        
     }
-  } catch (error) {
-    res.status(400).json({ error: "Failed to create User" });
-  }
-};
+}
 
-const getAllUsers = async (req, res) => {
-  try {
+const getAllUsers = async (req,res)=>{
+
     let users = await User.find({});
 
     res.json({
-      success: true,
-      message: "Users fetcehd successfully!",
-      data: users,
-    });
-  } catch (error) {
-    res.status(400).json({ error: "Failed to get Users" });
-  }
-};
+        success:true,
+        message:'users fetcehd successfully!',
+        data:users
+    })
+}
 
-const updateUser = async (req, res) => {
-  try {
-    await User.findByIdAndUpdate(req.body.id, {
-      ...req.body,
-    });
+const getUserById = async (req,res)=>{
+
+    let user = await User.findById(req.params.id);
 
     res.json({
-      success: true,
-      message: "User updated successfully!",
+        success:true,
+        message:'users fetcehd successfully!',
+        data:user
+    })
+}
+
+const updateUser = async (req,res) => {
+     
+     await User.findByIdAndUpdate(req.body.id,{
+        first_name:req.body.first_name,
+        last_name:req.body.last_name,
+        email:req.body.email,
+     });
+
+    res.json({
+        success:true,
+        message:'user updated successfully!'
     });
-  } catch (error) {
-    res.status(400).json({ error: "Failed to update user" });
-  }
-};
+}
 
-const deleteUser = async (req, res) => {
-  try {
-    let user = await User.findByIdAndDelete(req.params.id);
-    if (user) {
-      res.json({
-        success: true,
-        message: "User deleted successfully!",
-      });
-    } else {
-      res.status(400).json({
-        success: false,
-        message: "No such User!",
-      });
-    }
-  } catch (error) {
-    res.status(400).json({ error: "Failed to delete User" });
-  }
-};
+const deleteUser = async (req,res) => {
 
-const getUserByID = async (req, res) => {
-  try {
-    let user = await User.findById(req.params.id);
-    if (user) {
-      res.json({
-        success: true,
-        message: "User fetcehd successfully!",
-        data: user,
-      });
-    } else {
-      res.status(400).json({
-        success: false,
-        message: "No such user",
-      });
-    }
-  } catch (error) {
-    res.status(400).json({ error: "Failed to get user" });
-  }
-};
+    await User.findByIdAndDelete(req.params.id);
+
+    res.json({
+        success:true,
+        message:'category deleted successfully!'
+    });
+
+}
+
+
 
 module.exports = {
-  createUser,
-  getAllUsers,
-  updateUser,
-  deleteUser,
-  getUserByID,
-};
+    createUser,
+    getAllUsers,
+    getUserById,
+    updateUser,
+    deleteUser
+}
